@@ -1,0 +1,7 @@
+- [x] install go
+- [x] make a basic go server that can do post and get
+- [x] have a basic distributed file storage system with ipfs with docker container
+- [x] connect the ipfs swarm distributed cluster manually
+- [X] structure code to be modular with different files for different parts
+- [x] storage images, rather than just text
+- [x] pass parameters to actually retrieve specific data

@@ -1,0 +1,34 @@
+services:
+  ipfs1:
+    image: "ipfs/go-ipfs:v0.24.0"
+    container_name: ipfs_node1
+    ports:
+      - "5001:5001"
+      - "8080:8080"
+    volumes:
+      - ipfs_data1:/data/ipfs
+    restart: always
+
+  ipfs2:
+    image: "ipfs/go-ipfs:v0.24.0"
+    container_name: ipfs_node2
+    ports:
+      - "5002:5001"  # different port for second IPFS node
+      - "8081:8080"
+    volumes:
+      - ipfs_data2:/data/ipfs
+    restart: always
+
+  backend:
+    build: .
+    container_name: media_backend
+    depends_on:
+      - ipfs1
+      - ipfs2  # your backend depends on both IPFS nodes
+    ports:
+      - "8085:8081"
+    restart: always
+
+volumes:
+  ipfs_data1:
+  ipfs_data2:
