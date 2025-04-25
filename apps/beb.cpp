@@ -1,10 +1,13 @@
 #include <iostream>
 #include <thread>
+#include <atomic>
+
 #include <distrifein/beb.hpp>
 #include <distrifein/event.hpp>
 #include <distrifein/fd.hpp>
 #include <distrifein/network.hpp>
 #include <distrifein/utils.hpp>
+#include <distrifein/logger.hpp>
 
 #include "network_thread.hpp"
 #include "fd_thread.hpp"
@@ -34,9 +37,14 @@ int main(int argc, char *argv[])
     }
     cout << endl;
 
-    // get the user input and send to peers when sent
-    std::thread serverThread(network_thread);
-    std::thread failureDetectorThread(failure_detector_thread);
+    std::atomic<bool> running(true);
+    
+    // Initialize the logger
+    Logger &logger = Logger::getInstance();
+    // logger.setOutputFile("log.txt");
+
+    std::thread serverThread(network_thread, std::ref(running), std::ref(logger));
+    std::thread failureDetectorThread(failure_detector_thread, std::ref(running), std::ref(logger));
 
     serverThread.join();
     failureDetectorThread.join();

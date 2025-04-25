@@ -1,9 +1,15 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
+
 #include "network_thread.hpp"
 
-void network_thread()
+void network_thread(std::atomic<bool>& running, Logger &logger)
 {
-    std::cout << "Network thread started." << std::endl;
-    // Here you can implement the logic for the network thread
-    // For example, accept incoming connections and handle them
+    logger.log("Network thread started.");
+    while (running) {
+        logger.log("Server running...");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    logger.log("Network thread exiting...");
 }
