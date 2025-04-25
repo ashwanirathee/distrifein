@@ -10,3 +10,4 @@
 - [x] make tcp to be reliable (perfect) links and then broadcast
 - [x] do event based best effort broadcast and make it modular
 - [] do event based reliable broadcast
+- [x] switch to c++ to have faster iteration and more understanding
