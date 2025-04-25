@@ -1,8 +1,6 @@
-module server/hello
+module github.com/ashwanirathee/Distrifein
 
-go 1.20
-
-replace server/hello => ../server
+go 1.24.2
 
 require github.com/ipfs/go-ipfs-api v0.7.0
 

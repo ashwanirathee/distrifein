@@ -5,3 +5,8 @@
 - [X] structure code to be modular with different files for different parts
 - [x] storage images, rather than just text
 - [x] pass parameters to actually retrieve specific data
+- [x] launch 3 go processes that are independent and communicate with each other where processes by default are crash-stop
+- [x] establish point-to-point communication between processes and unique identification of message and sender. In terms of links, assume all links are bidirectional and all processes are connected to each other
+- [x] make tcp to be reliable (perfect) links and then broadcast
+- [x] do event based best effort broadcast and make it modular
+- [] do event based reliable broadcast
