@@ -35,8 +35,7 @@ void TcpServer::setMessageCallback(MessageCallback callback)
 
 void TcpServer::startServer()
 {
-    std::thread netThread(&TcpServer::network_thread, this);
-    netThread.join();
+    std::thread(&TcpServer::network_thread, this).detach();
 }
 
 void TcpServer::receiveMessage(int clientSocket)

@@ -8,8 +8,7 @@ BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server) : server(server)
 
 void BestEffortBroadcaster::broadcast(const std::string &message)
 {
-    std::cout << "Broadcasting-> msg: " << message << std::endl;
-
+    logger.log("[BEB] Broadcasting-> msg: " + message);
     // send to itself
     server.sendMessage("127.0.0.1", server.getSelfPort(), message);
 
@@ -21,13 +20,14 @@ void BestEffortBroadcaster::broadcast(const std::string &message)
 
 void BestEffortBroadcaster::deliver(int src, const std::string &message)
 {
-    std::cout << "Deliver-> src: " << src << ", msg: " << message << std::endl;
+    logger.log("[BEB] Delivering-> src: " + std::to_string(src) + ", msg: " + message);
 }
 
 void BestEffortBroadcaster::setupCallbacks()
 {
-    server.setClientCallback([](int clientSocket)
-                             { std::cout << "New client connected: " << clientSocket << std::endl; });
+    server.setClientCallback([](int clientSocket) { //
+        // std::cout << "New client connected: " << clientSocket << std::endl;
+    });
 
     server.setMessageCallback([this](const std::string &message)
                               {

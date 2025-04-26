@@ -11,8 +11,6 @@
 #include <distrifein/utils.hpp>
 #include <distrifein/logger.hpp>
 
-#include "fd_thread.hpp"
-
 using namespace std;
 
 void application(std::atomic<bool> &running, Logger &logger, BestEffortBroadcaster &beb)
@@ -67,6 +65,7 @@ int main(int argc, char *argv[])
     // Initialize the TcpServer and BestEffortBroadcaster
     TcpServer server(port, peers);
     BestEffortBroadcaster beb(server);
+    FailureDetector detector(server);
 
     // Start the input thread for user interaction
     std::atomic<bool> running(true);
@@ -74,6 +73,7 @@ int main(int argc, char *argv[])
 
     // Start the server
     server.startServer();
+    detector.start();
     inputThread.join();
 
     return 0;

@@ -1,8 +1,8 @@
 #ifndef BEB_HPP
 #define BEB_HPP
 
-#include <distrifein/network.hpp>
 #include <string>
+#include <distrifein/network.hpp>
 
 class BestEffortBroadcaster
 {
@@ -15,6 +15,7 @@ public:
 
 private:
     TcpServer &server;
+    Logger &logger = Logger::getInstance();
 };
 
 #endif
