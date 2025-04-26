@@ -1,6 +1,8 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <vector>
+#include <string>
 
 #include <distrifein/beb.hpp>
 #include <distrifein/event.hpp>
@@ -9,45 +11,70 @@
 #include <distrifein/utils.hpp>
 #include <distrifein/logger.hpp>
 
-#include "network_thread.hpp"
 #include "fd_thread.hpp"
 
 using namespace std;
 
+void application(std::atomic<bool> &running, Logger &logger, BestEffortBroadcaster &beb)
+{
+    std::string line;
+    logger.log("[App Layer] Entering input loop. Type 'exit' to quit.");
+    while (running)
+    {
+        std::getline(std::cin, line);
+        if (line.empty())
+            continue;
+
+        logger.log("[User] Input: " + line);
+
+        if (line == "exit")
+        {
+            logger.log("[User] Exit requested.");
+            running = false;
+            break;
+        }
+
+        beb.broadcast(line); // Broadcast the message using BEB layer
+    }
+}
+
+bool debug = false; // Set to false to disable debug messages
+
 // ./build/beb 1 8000 8001,8002,8003
 int main(int argc, char *argv[])
 {
-    // first arg will be node's id, second will be the port used by this node, third will be list of peers in form of port1,port2,...
-    if (argc < 3)
+    if (argc < 4)
     {
-        cout << "We expect at least 3 arguments: node_id, port, peers" << endl;
+        cout << "Usage: ./beb <node_id> <port> <peer_ports_comma_separated>\n";
         return 1;
     }
+
     int node_id = atoi(argv[1]);
     int port = atoi(argv[2]);
     vector<int> peers = split_peers_string(argv[3], ',');
 
-    // print all this detail
-    cout << "Node ID: " << node_id << endl;
-    cout << "Port: " << port << endl;
-    cout << "Peers: ";
-    for (size_t i = 0; i < peers.size(); i++)
+    if (debug)
     {
-        cout << peers[i] << " ";
+        cout << "Node ID: " << node_id << "\nPort: " << port << "\nPeers: ";
+        for (int p : peers)
+            cout << p << " ";
+        cout << endl;
     }
-    cout << endl;
 
+    // Initialize logger
+    Logger &logger = Logger::getInstance(); // Get the singleton logger
+
+    // Initialize the TcpServer and BestEffortBroadcaster
+    TcpServer server(port, peers);
+    BestEffortBroadcaster beb(server);
+
+    // Start the input thread for user interaction
     std::atomic<bool> running(true);
-    
-    // Initialize the logger
-    Logger &logger = Logger::getInstance();
-    // logger.setOutputFile("log.txt");
+    std::thread inputThread(application, std::ref(running), std::ref(logger), std::ref(beb));
 
-    std::thread serverThread(network_thread, std::ref(running), std::ref(logger));
-    std::thread failureDetectorThread(failure_detector_thread, std::ref(running), std::ref(logger));
-
-    serverThread.join();
-    failureDetectorThread.join();
+    // Start the server
+    server.startServer();
+    inputThread.join();
 
     return 0;
 }

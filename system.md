@@ -58,3 +58,7 @@ export PATH="$PATH:/Applications/Docker.app/Contents/Resources/bin/"
 - `go run ./examples/beb.go --id=node1 --port=8001 --peers=localhost:8002,localhost:8003` to run the first node and changing the details to run 3 or more nodes.
 - The programming style for broadcaster.go is very similar I saw in Julia community 
 - Switching to C++ as more comfortable with C++ and the performance is better
+
+#### C++ based best effort broadcast with tcp
+- Basic structure of components
+    ![](assets/architecture.png)

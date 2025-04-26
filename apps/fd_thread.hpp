@@ -5,6 +5,6 @@
 #include <atomic>
 #include <distrifein/logger.hpp>
 
-void failure_detector_thread(std::atomic<bool>& running, Logger &logger);
+void failure_detector_thread(std::atomic<bool> &running, Logger &logger);
 
 #endif
