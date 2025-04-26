@@ -1,36 +1,23 @@
 #include <distrifein/beb.hpp>
 #include <iostream>
 
-BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server) : server(server)
+BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus, bool deliveryOnReceive) : server(server), eventBus(eventBus), deliveryOnReceive(deliveryOnReceive)
 {
-    setupCallbacks();
+    eventBus.subscribe(EventType::P2P_MESSAGE_RECEIVED, [this](const Event &event)
+                       {
+        if(this->deliveryOnReceive && event.payload.size() == sizeof(BestEffortBroadcastMessage))
+        {
+            BestEffortBroadcastMessage bebm;
+            std::memcpy(&bebm, event.payload.data(), sizeof(BestEffortBroadcastMessage));
+            this->logger.log("[BEB] Received message from P2P at BEB: " + std::string(bebm.message));
+            this->deliver(bebm);
+        } 
+
+        Event event_beb(EventType::BEB_MESSAGE_RECEIVED, event.payload);
+        this->eventBus.publish(event_beb); });
 }
 
-void BestEffortBroadcaster::broadcast(const std::string &message)
+void BestEffortBroadcaster::deliver(BestEffortBroadcastMessage &message)
 {
-    logger.log("[BEB] Broadcasting-> msg: " + message);
-    // send to itself
-    server.sendMessage("127.0.0.1", server.getSelfPort(), message);
-
-    for (int peerPort : server.getPeers())
-    {
-        server.sendMessage("127.0.0.1", peerPort, message);
-    }
-}
-
-void BestEffortBroadcaster::deliver(int src, const std::string &message)
-{
-    logger.log("[BEB] Delivering-> src: " + std::to_string(src) + ", msg: " + message);
-}
-
-void BestEffortBroadcaster::setupCallbacks()
-{
-    server.setClientCallback([](int clientSocket) { //
-        // std::cout << "New client connected: " << clientSocket << std::endl;
-    });
-
-    server.setMessageCallback([this](const std::string &message)
-                              {
-                                  this->deliver(0, message); // or extract real source if needed
-                              });
+    logger.log("[BEB] Delivering-> msg: " + std::string(message.message));
 }

@@ -3,20 +3,21 @@
 #include <iostream>
 #include <sstream>
 
-FailureDetector::FailureDetector(TcpServer &server, int timeoutMs, int intervalMs)
-    : server(server), timeoutMs(timeoutMs), intervalMs(intervalMs), running(false)
+FailureDetector::FailureDetector(TcpServer &server, EventBus &eventBus, int timeoutMs, int intervalMs)
+    : server(server), eventBus(eventBus), timeoutMs(timeoutMs), intervalMs(intervalMs), running(false)
 {
     logger.log("[FailureDetector] Initialized with timeout: " + std::to_string(timeoutMs) + "ms, interval: " + std::to_string(intervalMs) + "ms");
+    eventBus.subscribe(EventType::P2P_MESSAGE_RECEIVED, [this](const Event &event)
+    {
+        std::string message(event.payload.begin(), event.payload.end());
+        handleMessage(message);
+    });
 }
 
 void FailureDetector::start()
 {
     logger.log("[FailureDetector] Starting failure detector...");
     running = true;
-
-    // Set message callback
-    server.setMessageCallback([this](const std::string &msg)
-                              { handleMessage(msg); });
 
     std::thread(&FailureDetector::sendHeartbeats, this).detach();
     std::thread(&FailureDetector::monitorHeartbeats, this).detach();

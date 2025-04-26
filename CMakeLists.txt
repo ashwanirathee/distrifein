@@ -28,8 +28,8 @@ if(BUILD_EXAMPLES)
     # Get all .cpp files in src/
     file(GLOB SOURCES "apps/*.cpp")
 
-    add_executable(beb ${SOURCES})
-    target_link_libraries(beb PRIVATE distrifein)
+    add_executable(main ${SOURCES})
+    target_link_libraries(main PRIVATE distrifein)
 endif()
 
 # ========================================

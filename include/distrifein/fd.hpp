@@ -10,13 +10,14 @@
 class FailureDetector
 {
 public:
-    FailureDetector(TcpServer &server, int timeoutMs = 5000, int intervalMs = 2000);
+    FailureDetector(TcpServer &server, EventBus &eventBus, int timeoutMs = 5000, int intervalMs = 2000);
 
     void start();
     void stop();
 
 private:
     TcpServer &server;
+    EventBus &eventBus;
     int timeoutMs;
     int intervalMs;
     std::atomic<bool> running;

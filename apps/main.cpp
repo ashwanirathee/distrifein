@@ -10,31 +10,13 @@
 #include <distrifein/network.hpp>
 #include <distrifein/utils.hpp>
 #include <distrifein/logger.hpp>
+#include <distrifein/rb.hpp>
+#include <distrifein/eventbus.hpp>
+#include <distrifein/event.hpp>
+
+#include "app.hpp"
 
 using namespace std;
-
-void application(std::atomic<bool> &running, Logger &logger, BestEffortBroadcaster &beb)
-{
-    std::string line;
-    logger.log("[App Layer] Entering input loop. Type 'exit' to quit.");
-    while (running)
-    {
-        std::getline(std::cin, line);
-        if (line.empty())
-            continue;
-
-        logger.log("[User] Input: " + line);
-
-        if (line == "exit")
-        {
-            logger.log("[User] Exit requested.");
-            running = false;
-            break;
-        }
-
-        beb.broadcast(line); // Broadcast the message using BEB layer
-    }
-}
 
 bool debug = false; // Set to false to disable debug messages
 
@@ -61,20 +43,18 @@ int main(int argc, char *argv[])
 
     // Initialize logger
     Logger &logger = Logger::getInstance(); // Get the singleton logger
+    EventBus eventBus;                      // Just create it normally (no heap allocation)
+    TcpServer server(port, peers, eventBus);
+    BestEffortBroadcaster beb(server, eventBus);
+    FailureDetector detector(server, eventBus);
+    
+    bool deliveryOnReceive = true;
+    ReliableBroadcaster rb(beb, detector, peers, port, eventBus, deliveryOnReceive);
+    Application app(rb); // Create the application with the ReliableBroadcaster
 
-    // Initialize the TcpServer and BestEffortBroadcaster
-    TcpServer server(port, peers);
-    BestEffortBroadcaster beb(server);
-    FailureDetector detector(server);
-
-    // Start the input thread for user interaction
-    std::atomic<bool> running(true);
-    std::thread inputThread(application, std::ref(running), std::ref(logger), std::ref(beb));
-
-    // Start the server
     server.startServer();
     detector.start();
-    inputThread.join();
+    app.run(); 
 
     return 0;
 }
