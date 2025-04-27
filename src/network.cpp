@@ -80,7 +80,7 @@ void TcpServer::deliver(int clientSocket)
     ssize_t bytesRead = read(clientSocket, buffer, sizeof(buffer) - 1);
     if (bytesRead > 0)
     {
-        // logger.log("[P2P] Received message size: " + std::to_string(bytesRead));
+        if (bytesRead >30) logger.log("[P2P] Received message size: " + std::to_string(bytesRead)); // ignoring heartbeats
         std::vector<uint8_t> receivedData(buffer, buffer + bytesRead);
         Event event(EventType::P2P_DELIVER_EVENT, receivedData);
         eventBus.publish(event);

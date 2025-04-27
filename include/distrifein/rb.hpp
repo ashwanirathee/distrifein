@@ -10,63 +10,12 @@
 #include <distrifein/eventbus.hpp>
 #include <distrifein/logger.hpp>
 #include <distrifein/message.hpp>
+#include <distrifein/orderedset.hpp>
 
 
-#include <vector>
-#include <unordered_set>
 #include <iostream>
 
-template <typename T>
-class OrderedSet {
-private:
-    std::vector<T> order;                // To keep insertion order
-    std::unordered_set<T> uniqueSet;     // To track uniqueness
 
-public:
-    // Insert value if it's not already in the set
-    void insert(const T& value) {
-        if (uniqueSet.find(value) == uniqueSet.end()) {
-            order.push_back(value);
-            uniqueSet.insert(value);
-        }
-    }
-
-    // Clear the OrderedSet
-    void clear() {
-        order.clear();
-        uniqueSet.clear();
-    }
-
-    // Get the size of the OrderedSet
-    size_t size() const {
-        return order.size();
-    }
-
-    // Iterator support for range-based for loops
-    typename std::vector<T>::iterator begin() {
-        return order.begin();
-    }
-
-    typename std::vector<T>::iterator end() {
-        return order.end();
-    }
-
-    typename std::vector<T>::const_iterator begin() const {
-        return order.begin();
-    }
-
-    typename std::vector<T>::const_iterator end() const {
-        return order.end();
-    }
-
-    // Print the elements in the OrderedSet (for debugging)
-    void print() const {
-        for (const auto& elem : order) {
-            std::cout << elem << " ";
-        }
-        std::cout << std::endl;
-    }
-};
 
 class ReliableBroadcaster
 {

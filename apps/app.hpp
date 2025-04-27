@@ -8,6 +8,7 @@
 
 enum class BroadcasterType
 {
+    UniformReliableBroadcast,
     ReliableBroadcast,
     BestEffortBroadcast,
     Unknown
@@ -35,7 +36,13 @@ Application<T>::Application(T &broadcaster, EventBus &eventBus)
 {
     logger.log("[App] Initialized with broadcaster type: " + std::string(typeid(T).name()));
     logger.log("[App] Subscribing to events...");
-    if (std::is_same<T, ReliableBroadcaster>::value)
+    if (std::is_same<T, UniformReliableBroadcaster>::value)
+    {
+        broadcasterType = BroadcasterType::UniformReliableBroadcast;
+        eventBus.subscribe(EventType::URB_DELIVER_EVENT, [this](const Event &event)
+                           { this->decode(event, broadcasterType); });
+    }
+    else if (std::is_same<T, ReliableBroadcaster>::value)
     {
         broadcasterType = BroadcasterType::ReliableBroadcast;
         eventBus.subscribe(EventType::RB_DELIVER_EVENT, [this](const Event &event)
@@ -56,7 +63,14 @@ Application<T>::Application(T &broadcaster, EventBus &eventBus)
 template <typename T>
 void Application<T>::decode(const Event &event, BroadcasterType type)
 {
-    if (type == BroadcasterType::ReliableBroadcast)
+    if (type == BroadcasterType::UniformReliableBroadcast)
+    {
+        ReliableBroadcastMessage message;
+        std::memcpy(&message, event.payload.data(), sizeof(ReliableBroadcastMessage));
+        message.message[sizeof(message.message) - 1] = '\0'; // Ensure null termination
+        logger.log("[App] Received message: " + std::string(message.message));
+    }
+    else if (type == BroadcasterType::ReliableBroadcast)
     {
         ReliableBroadcastMessage message;
         std::memcpy(&message, event.payload.data(), sizeof(ReliableBroadcastMessage));
@@ -92,7 +106,21 @@ void Application<T>::run()
             break;
         }
 
-        if constexpr (std::is_same<T, ReliableBroadcaster>::value)
+        if constexpr (std::is_same<T, UniformReliableBroadcaster>::value){
+            // For ReliableBroadcaster, we need to create a ReliableBroadcastMessage
+            ReliableBroadcastMessage msg;
+            msg.senderPort = broadcaster.getServer().getSelfPort(); // Set sender port
+            msg.originalSenderPort = msg.senderPort;                // Set original sender port
+            msg.message[0] = '\0';                                  // Initialize message buffer
+            std::strncpy(msg.message, line.c_str(), sizeof(msg.message) - 1);
+            msg.message[sizeof(msg.message) - 1] = '\0'; // Ensure null termination
+
+            std::vector<uint8_t> payload(sizeof(msg));
+            std::memcpy(payload.data(), &msg, sizeof(msg));
+            Event event(EventType::APP_SEND_EVENT, payload);
+            eventBus.publish(event);
+        }
+        else if constexpr (std::is_same<T, ReliableBroadcaster>::value)
         {
             // For ReliableBroadcaster, we need to create a ReliableBroadcastMessage
             ReliableBroadcastMessage msg;

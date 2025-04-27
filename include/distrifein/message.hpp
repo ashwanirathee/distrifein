@@ -1,7 +1,9 @@
 #ifndef MESSAGE_HPP
 #define MESSAGE_HPP
 
+#include <vector>
 #include <cstdint>
+#include <functional>
 
 // we ignore certain messages assuming they are always less than 30 bytes
 // like heartbeat messages in other applications
@@ -80,5 +82,21 @@ namespace std
         }
     };
 }
+
+struct PayloadHasher {
+    std::size_t operator()(const std::vector<uint8_t>& payload, int32_t originalSenderPort) const {
+        std::size_t hash = 0;
+
+        // First, hash the payload
+        for (auto byte : payload) {
+            hash ^= std::hash<uint8_t>{}(byte) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        }
+
+        // Then, hash the original sender port into it
+        hash ^= std::hash<int32_t>{}(originalSenderPort) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+
+        return hash;
+    }
+};
 
 #endif // !1

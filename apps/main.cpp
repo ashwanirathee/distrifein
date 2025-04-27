@@ -13,6 +13,7 @@
 #include <distrifein/rb.hpp>
 #include <distrifein/eventbus.hpp>
 #include <distrifein/event.hpp>
+#include <distrifein/urb.hpp>
 
 #include "app.hpp"
 
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
         server.startServer();
         app.run();
     }
-    else
+    else if (test_type == 1)
     {
         TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
         BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::RB_SEND_EVENT});
@@ -65,6 +66,23 @@ int main(int argc, char *argv[])
         server.startServer();
         detector.start();
         app.run();
+    } else if(test_type == 2)
+    {
+        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::URB_SEND_EVENT});
+        FailureDetector detector(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {});
+        UniformReliableBroadcaster urb(beb, detector, peers, port, eventBus);
+        Application app(urb, eventBus); // Create the application with the ReliableBroadcaster
+
+        server.startServer();
+        detector.start();
+        app.run();
+    }
+    else
+    {
+        cout << "Invalid test type. Use 0 for BEB or 1 for RB.\n";
+        return 1;
+
     }
 
     return 0;

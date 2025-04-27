@@ -10,6 +10,7 @@ Distributed, Decentralized, Fault-Tolerant Media Platform in C++
 - Event-driven intra-layer communication with modular layered architecture with recursive mutexes
 - ![](assets/architecture.png)
 - Reliable Broadcast
+- Uniform Reliable Broadcast
 
 Some Logs are present here: https://gist.github.com/ashwanirathee/c7dcb605a0bfa88e53890b2812e95169 
 

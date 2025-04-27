@@ -24,6 +24,9 @@ enum class EventType {
     RB_DELIVER_EVENT,
     RB_SEND_EVENT,
 
+    URB_SEND_EVENT,
+    URB_DELIVER_EVENT,
+
     APP_SEND_EVENT,
     
     CLIENT_CONNECTED,

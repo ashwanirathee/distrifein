@@ -1,7 +1,7 @@
 #include <distrifein/beb.hpp>
 #include <iostream>
 
-BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus, 
+BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus,
                                              std::vector<EventType> deliver_events, std::vector<EventType> send_events)
     : server(server), eventBus(eventBus), deliver_events(deliver_events), send_events(send_events)
 {
@@ -23,6 +23,9 @@ void BestEffortBroadcaster::broadcast(const Event &event)
 
     logger.log("[BEB] Broadcasting Message!");
 
+    Event event_selfbeb(EventType::BEB_DELIVER_EVENT, event.payload);
+    this->eventBus.publish(event_selfbeb);
+
     Event event_beb(EventType::BEB_SEND_EVENT, event.payload);
     this->eventBus.publish(event_beb);
 }
@@ -34,12 +37,12 @@ void BestEffortBroadcaster::deliver(const Event &event)
         // logger.log("[BEB] Those are heartbeat messages.");
         return;
     }
-
+    logger.log("[BEB] Delivering Message!");
     Event event_beb(EventType::BEB_DELIVER_EVENT, event.payload);
     this->eventBus.publish(event_beb);
 }
 
-    TcpServer& BestEffortBroadcaster::getServer()
-    {
-        return server;
-    }
+TcpServer &BestEffortBroadcaster::getServer()
+{
+    return server;
+}
