@@ -9,8 +9,11 @@ Distributed, Decentralized, Fault-Tolerant Media Platform in C++
 - Ability to handle custom data (text, images, video); previously only strings were supported
 - Event-driven intra-layer communication with modular layered architecture with recursive mutexes
 - ![](assets/architecture.png)
-- Reliable Broadcast (Work in Progress)
+- Reliable Broadcast
 
+Some Logs are present here: https://gist.github.com/ashwanirathee/c7dcb605a0bfa88e53890b2812e95169 
 
 #### References
 This project is greatly influenced by course content from the graduate Distributed Systems class (CSE 232) at UCSC, taught by Prof. Mohsen Lesani.
+
+- Notes: https://mohsenlesani.github.io/slugcse232/ 
