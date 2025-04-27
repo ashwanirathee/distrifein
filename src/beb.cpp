@@ -1,23 +1,45 @@
 #include <distrifein/beb.hpp>
 #include <iostream>
 
-BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus, bool deliveryOnReceive) : server(server), eventBus(eventBus), deliveryOnReceive(deliveryOnReceive)
+BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus, 
+                                             std::vector<EventType> deliver_events, std::vector<EventType> send_events)
+    : server(server), eventBus(eventBus), deliver_events(deliver_events), send_events(send_events)
 {
-    eventBus.subscribe(EventType::P2P_MESSAGE_RECEIVED, [this](const Event &event)
-                       {
-        if(this->deliveryOnReceive && event.payload.size() == sizeof(BestEffortBroadcastMessage))
-        {
-            BestEffortBroadcastMessage bebm;
-            std::memcpy(&bebm, event.payload.data(), sizeof(BestEffortBroadcastMessage));
-            this->logger.log("[BEB] Received message from P2P at BEB: " + std::string(bebm.message));
-            this->deliver(bebm);
-        } 
+    for (auto &eventType : deliver_events)
+    {
+        eventBus.subscribe(eventType, [this](const Event &event)
+                           { this->deliver(event); });
+    }
 
-        Event event_beb(EventType::BEB_MESSAGE_RECEIVED, event.payload);
-        this->eventBus.publish(event_beb); });
+    for (auto &eventType : send_events)
+    {
+        eventBus.subscribe(eventType, [this](const Event &event)
+                           { this->broadcast(event); });
+    }
 }
 
-void BestEffortBroadcaster::deliver(BestEffortBroadcastMessage &message)
+void BestEffortBroadcaster::broadcast(const Event &event)
 {
-    logger.log("[BEB] Delivering-> msg: " + std::string(message.message));
+
+    logger.log("[BEB] Broadcasting Message!");
+
+    Event event_beb(EventType::BEB_SEND_EVENT, event.payload);
+    this->eventBus.publish(event_beb);
 }
+
+void BestEffortBroadcaster::deliver(const Event &event)
+{
+    if (event.payload.size() < 30)
+    {
+        // logger.log("[BEB] Those are heartbeat messages.");
+        return;
+    }
+
+    Event event_beb(EventType::BEB_DELIVER_EVENT, event.payload);
+    this->eventBus.publish(event_beb);
+}
+
+    TcpServer& BestEffortBroadcaster::getServer()
+    {
+        return server;
+    }

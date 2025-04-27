@@ -25,13 +25,14 @@ int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        cout << "Usage: ./beb <node_id> <port> <peer_ports_comma_separated>\n";
+        cout << "Usage: ./beb <node_id> <port> <peer_ports_comma_separated> <test_type>\n";
         return 1;
     }
 
     int node_id = atoi(argv[1]);
     int port = atoi(argv[2]);
     vector<int> peers = split_peers_string(argv[3], ',');
+    int test_type = atoi(argv[4]);
 
     if (debug)
     {
@@ -44,17 +45,27 @@ int main(int argc, char *argv[])
     // Initialize logger
     Logger &logger = Logger::getInstance(); // Get the singleton logger
     EventBus eventBus;                      // Just create it normally (no heap allocation)
-    TcpServer server(port, peers, eventBus);
-    BestEffortBroadcaster beb(server, eventBus);
-    FailureDetector detector(server, eventBus);
-    
-    bool deliveryOnReceive = true;
-    ReliableBroadcaster rb(beb, detector, peers, port, eventBus, deliveryOnReceive);
-    Application app(rb); // Create the application with the ReliableBroadcaster
 
-    server.startServer();
-    detector.start();
-    app.run(); 
+    if (test_type == 0)
+    {
+        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::APP_SEND_EVENT});
+        Application app(beb, eventBus); // Create the application with the ReliableBroadcaster
+        server.startServer();
+        app.run();
+    }
+    else
+    {
+        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::RB_SEND_EVENT});
+        FailureDetector detector(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {});
+        ReliableBroadcaster rb(beb, detector, peers, port, eventBus);
+        Application app(rb, eventBus); // Create the application with the ReliableBroadcaster
+
+        server.startServer();
+        detector.start();
+        app.run();
+    }
 
     return 0;
 }

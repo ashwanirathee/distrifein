@@ -2,17 +2,45 @@
 #define MESSAGE_HPP
 
 #include <cstdint>
+
+// we ignore certain messages assuming they are always less than 30 bytes
+// like heartbeat messages in other applications
+// be careful with this
+
+#pragma pack(push, 1)
+struct ProcessCrashEvent
+{
+    int32_t processId; // process ID
+    bool operator==(const ProcessCrashEvent &other) const
+    {
+        return processId == other.processId;
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct HeartbeatMessage {
+    int32_t senderPort; // sender ID (can also be int ID, IP, etc.)
+    bool operator==(const HeartbeatMessage &other) const
+    {
+        return senderPort == other.senderPort;
+    }
+};
+#pragma pack(pop)
+
 #pragma pack(push, 1)
 struct ReliableBroadcastMessage
 {
     int32_t senderPort; // sender ID (can also be int ID, IP, etc.)
+    int32_t originalSenderPort; // original sender ID (can also be int ID, IP, etc.)
     char message[512];  // fixed-size message buffer
 
     bool operator==(const ReliableBroadcastMessage &other) const
     {
-        return senderPort == other.senderPort && std::memcmp(message, other.message, 512) == 0;
+        return std::memcmp(message, other.message, 512) == 0;
     }
 };
+#pragma pack(pop)
 
 // Now specialize std::hash:
 namespace std
@@ -22,14 +50,12 @@ namespace std
     {
         std::size_t operator()(const ReliableBroadcastMessage &msg) const
         {
-            std::size_t h1 = std::hash<int32_t>()(msg.senderPort);
-            std::size_t h2 = std::hash<std::string_view>()(std::string_view(msg.message, 512));
-            return h1 ^ (h2 << 1); // or any good hash combine
+            return std::hash<std::string_view>()(std::string_view(msg.message, 512));
         }
     };
 }
 
-#pragma pack(pop)
+
 
 #pragma pack(push, 1)
 struct BestEffortBroadcastMessage
