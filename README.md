@@ -6,7 +6,7 @@ Distributed, Decentralized, Fault-Tolerant Media Platform in C++
 - Peer-to-Peer Communication via TCP
 - Best Effort Broadcast over Peer-to-Peer layer
 - Failure Detector using heartbeat-based method
-- Ability to handle custom data (text, images, video); previously only strings were supported
+- Support for broadcasting text 
 - Event-driven intra-layer communication with modular layered architecture with recursive mutexes
 - ![](assets/architecture.png)
 - Reliable Broadcast
