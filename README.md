@@ -8,7 +8,6 @@ Distributed, Decentralized, Fault-Tolerant Media Platform in C++
 - Failure Detector using heartbeat-based method
 - Support for broadcasting text 
 - Event-driven intra-layer communication with modular layered architecture with recursive mutexes
-- ![](assets/architecture.png)
 - Reliable Broadcast
 - Uniform Reliable Broadcast
 
