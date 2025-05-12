@@ -1,23 +1,20 @@
 #include <distrifein/urb.hpp>
 
-UniformReliableBroadcaster::UniformReliableBroadcaster(BestEffortBroadcaster &beb, FailureDetector &fd, std::vector<int> peers, int self_port, EventBus &eventBus)
-    : beb(beb), fd(fd), peers(peers), self_port(self_port), eventBus(eventBus)
+UniformReliableBroadcaster::UniformReliableBroadcaster(BestEffortBroadcaster &beb, FailureDetector &fd, std::vector<int> peers, int node_id, EventBus &eventBus)
+    : beb(beb), fd(fd), peerIds(peers), node_id(node_id), eventBus(eventBus)
 {
     // correct := Π
-    for (int peerPort : peers)
+    for (int peerId : peerIds)
     {
-        correct.insert(peerPort); // Initialize correct set with all peers
+        correct.insert(peerId); // Initialize correct set with all peers
     }
-    correct.insert(self_port); // Add self to correct set
+    correct.insert(node_id); // Add self to correct set
 
     // delivered := ∅, make sure delivered is empty
     delivered.clear();
 
     // pending := ∅
     pending.clear();
-
-    logger.log("[RB] Initialized with self_port: " + std::to_string(self_port) + ", peers: " + std::to_string(peers.size()));
-    logger.log("[RB] Subscribing to events...");
 
     eventBus.subscribe(EventType::BEB_DELIVER_EVENT, [this](const Event &event)
                        { this->handleBEBDeliverEvent(event); });
@@ -27,6 +24,8 @@ UniformReliableBroadcaster::UniformReliableBroadcaster(BestEffortBroadcaster &be
 
     eventBus.subscribe(EventType::PROCESS_CRASH_EVENT, [this](const Event &event)
                        { this->handleCrashEvent(event); });
+
+    logger.log("[URB] Initialized with subscriptions...");
 }
 
 TcpServer &UniformReliableBroadcaster::getServer()
@@ -36,13 +35,11 @@ TcpServer &UniformReliableBroadcaster::getServer()
 
 void UniformReliableBroadcaster::broadcast(const Event &event)
 {
-    ReliableBroadcastMessage rbm;
-    std::memcpy(&rbm, event.payload.data(), sizeof(ReliableBroadcastMessage));
-
+    Message rbm = deserialize_message(event.payload);
     logger.log("[URB] Broadcasting Message!");
 
     // pending := pending U {[self,m]}
-    pending.insert(rbm); // Add to delivered set
+    pending.insert(rbm); 
 
     // trigger < beb, broadcast ([self, m]) >
     Event event_rbs(EventType::URB_SEND_EVENT, event.payload);
@@ -67,9 +64,9 @@ void UniformReliableBroadcaster::handleCrashEvent(const Event &event)
     correct.erase(crashedProcessId);
     logger.log("[URB] Process " + std::to_string(crashedProcessId) + " has crashed.");
     logger.log("[URB] Correct set: ");
-    for (int peerPort : correct)
+    for (int peerId : correct)
     {
-        logger.log("[URB] " + std::to_string(peerPort));
+        logger.log("[URB] " + std::to_string(peerId));
     }
 
     this->tryDelivery();
@@ -77,26 +74,35 @@ void UniformReliableBroadcaster::handleCrashEvent(const Event &event)
 
 void UniformReliableBroadcaster::tryDelivery()
 {
-    // logger.log("[URB] Trying to deliver messages...");
+    logger.log("[URB] Message delivey attempt");
+    
     // foreach ([pj,m] in pending)
     for (const auto &message : pending){
         // ack[m] := ack[m] U {pi}
-        std::vector<uint8_t> payloadVector(message.message, message.message + 512);
-        std::size_t hashValue = hasher(payloadVector, message.originalSenderPort);
-        ack[hashValue].insert(message.senderPort); // Add to ack set
+        std::size_t size_to_hash = std::min<std::size_t>(message.payload.size(), 512);
+        std::string_view payload_view(reinterpret_cast<const char*>(message.payload.data()), size_to_hash);
+        std::vector<uint8_t> payloadVector(payload_view.begin(), payload_view.end());
+        std::size_t hashValue = hasher(payloadVector, message.header.original_sender_id);
+        ack[hashValue].insert(message.header.sender_id); // Add to ack set
+
         // if (correct ack[m] and m ∉ delivered)
         if (is_subset(correct, ack[hashValue]) && delivered.find(message) == delivered.end()){
-            logger.log("[URB] Message can be delivered!");
+            logger.log("[URB] Message is being delivered!");
             //     delivered := delivered U {m}
             this->delivered.insert(message); // Add to delivered set
             
             //     trigger <deliver (pj, m)>
-            std::vector<uint8_t> payload(sizeof(message));
-            std::memcpy(payload.data(), &message, sizeof(message));
+            std::vector<uint8_t> payload;
+            payload.resize(sizeof(MessageHeader) + message.payload.size());
+    
+            std::memcpy(payload.data(), &message.header, sizeof(MessageHeader));
+            std::memcpy(payload.data() + sizeof(MessageHeader), message.payload.data(), message.payload.size());
+            
             Event event_urb(EventType::URB_DELIVER_EVENT, payload);
             this->deliver(event_urb); // Deliver to self
         } else {
-            logger.log("[URB] Message not delivered yet and correct is not a subset of ack[m]");
+            // logger.log("[URB] Message not delivered yet and correct is not a subset of ack[m]");
+            logger.log("[URB] Message can't be delivered yet!");
         }
 
     }
@@ -106,41 +112,55 @@ void UniformReliableBroadcaster::tryDelivery()
 void UniformReliableBroadcaster::handleBEBDeliverEvent(const Event &event)
 {
     // logger.log("[URB] Handling BEB Deliver Event!");
-    ReliableBroadcastMessage message;
-    if (event.payload.size() != sizeof(ReliableBroadcastMessage))
-        return;
-    std::memcpy(&message, event.payload.data(), sizeof(ReliableBroadcastMessage));
+    Message message = deserialize_message(event.payload);
+    if (message.header.type == MessageType::HEARTBEAT_MESSAGE) return;
 
-    // Ensure null termination for message field
-    message.message[sizeof(message.message) - 1] = '\0'; // Null-terminate the string
-
+    
     // logger.log("[URB] Received message: " + std::string(message.message));
     // ack[m] := ack[m] U {pi}
-    std::vector<uint8_t> payloadVector(message.message, message.message + 512);
-    std::size_t hashValue = hasher(payloadVector, message.originalSenderPort);
-    ack[hashValue].insert(message.senderPort); // Add to ack set
+    std::size_t size_to_hash = std::min<std::size_t>(message.payload.size(), 512);
+    std::string_view payload_view(reinterpret_cast<const char*>(message.payload.data()), size_to_hash);
+    std::vector<uint8_t> payloadVector(payload_view.begin(), payload_view.end());
+    std::size_t hashValue = hasher(payloadVector, message.header.original_sender_id);
+    ack[hashValue].insert(message.header.sender_id); // Add to ack set
     // for (auto  it = ack[hashValue].begin(); it != ack[hashValue].end(); ++it)
     // {
     //     logger.log("[URB] ack[m] from: " + std::to_string(*it));
     // }
+    logger.log("[RB] SID: " + std::to_string(message.header.sender_id) + ", Org SID: " + std::to_string(message.header.original_sender_id));
+
+    logger.log("[RB] Current Message ID: " + std::string(message.header.message_id)+ ",size: " + std::to_string(message.payload.size()));
+    for (auto &msg_id : delivered)
+    {
+        logger.log("[RB] Delivered Message ID: " + std::string(msg_id.header.message_id));
+    }
+
+    for (auto &msg_id : pending)
+    {
+        logger.log("[RB] Pending Message ID: " + std::string(msg_id.header.message_id));
+    }
+    
 
     // logger.log("[URB] ack[m] size: " + std::to_string(ack[hashValue].size()));
     if (pending.find(message) == pending.end())
     {
-        logger.log("[URB] Message not found in pending set, adding it.");
+        logger.log("[URB] Message not in pending {}");
         // pending := pending U {[pj,m]}
         pending.insert(message); // Add to pending set
 
-        message.senderPort = this->self_port; // Set sender port to self
-        message.message[sizeof(message.message) - 1] = '\0'; // Ensure null termination
-        std::vector<uint8_t> payload(sizeof(message));
-        std::memcpy(payload.data(), &message, sizeof(message));
+        message.header.sender_id = this->node_id; // Set sender port to self
+        std::vector<uint8_t> payload;
+        payload.resize(sizeof(MessageHeader) + message.payload.size());
+
+        std::memcpy(payload.data(), &message.header, sizeof(MessageHeader));
+        std::memcpy(payload.data() + sizeof(MessageHeader), message.payload.data(), message.payload.size());
+    
 
         // trigger < beb, broadcast ([pj,m]) >
         Event event_rbs(EventType::URB_SEND_EVENT, payload);
         this->eventBus.publish(event_rbs); // Publish the event to the event bus
     } else {
-        logger.log("[URB] Message already in pending set, not adding it.");
+        logger.log("[URB] Message in pending {}");
         tryDelivery();
     }
 }

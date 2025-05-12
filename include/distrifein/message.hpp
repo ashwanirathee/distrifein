@@ -20,15 +20,15 @@ struct ProcessCrashEvent
 };
 #pragma pack(pop)
 
-#pragma pack(push, 1)
-struct HeartbeatMessage {
-    int32_t senderPort; // sender ID (can also be int ID, IP, etc.)
-    bool operator==(const HeartbeatMessage &other) const
-    {
-        return senderPort == other.senderPort;
-    }
-};
-#pragma pack(pop)
+// #pragma pack(push, 1)
+// struct HeartbeatMessage {
+//     int32_t senderPort; // sender ID (can also be int ID, IP, etc.)
+//     bool operator==(const HeartbeatMessage &other) const
+//     {
+//         return senderPort == other.senderPort;
+//     }
+// };
+// #pragma pack(pop)
 
 #pragma pack(push, 1)
 struct ReliableBroadcastMessage
@@ -59,29 +59,29 @@ namespace std
 
 
 
-#pragma pack(push, 1)
-struct BestEffortBroadcastMessage
-{
-    char message[512]; // fixed-size message buffer
-    bool operator==(const BestEffortBroadcastMessage &other) const
-    {
-        return std::memcmp(message, other.message, 512) == 0;
-    }
-};
-#pragma pack(pop)
+// #pragma pack(push, 1)
+// struct BestEffortBroadcastMessage
+// {
+//     char message[512]; // fixed-size message buffer
+//     bool operator==(const BestEffortBroadcastMessage &other) const
+//     {
+//         return std::memcmp(message, other.message, 512) == 0;
+//     }
+// };
+// #pragma pack(pop)
 
-// Now specialize std::hash:
-namespace std
-{
-    template <>
-    struct hash<BestEffortBroadcastMessage>
-    {
-        std::size_t operator()(const BestEffortBroadcastMessage &msg) const
-        {
-            return std::hash<std::string_view>()(std::string_view(msg.message, 512));
-        }
-    };
-}
+// // Now specialize std::hash:
+// namespace std
+// {
+//     template <>
+//     struct hash<BestEffortBroadcastMessage>
+//     {
+//         std::size_t operator()(const BestEffortBroadcastMessage &msg) const
+//         {
+//             return std::hash<std::string_view>()(std::string_view(msg.message, 512));
+//         }
+//     };
+// }
 
 struct PayloadHasher {
     std::size_t operator()(const std::vector<uint8_t>& payload, int32_t originalSenderPort) const {
@@ -98,5 +98,54 @@ struct PayloadHasher {
         return hash;
     }
 };
+
+enum class MessageType {
+    TEXT_MESSAGE,
+    IMAGE_MESSAGE,
+    VIDEO_MESSAGE,
+    AUDIO_MESSAGE,
+    HEARTBEAT_MESSAGE,
+};
+
+#pragma pack(push, 1)
+struct MessageHeader {
+    MessageType type;
+    uint8_t sender_id;
+    uint8_t recipient_id;
+    char message_id[41];  // "msg-..." + null terminator
+    uint64_t timestamp;
+    uint32_t chunk_index;
+    uint32_t total_chunks;
+    uint32_t crc32;
+    uint64_t payload_size;
+    uint8_t original_sender_id;
+};
+#pragma pack(pop)
+
+struct Message {
+    MessageHeader header;
+    std::vector<uint8_t> payload;
+
+    bool operator==(const Message &other) const
+    {
+        return payload.size() == other.payload.size() &&
+        std::memcmp(payload.data(), other.payload.data(), payload.size()) == 0;
+     }
+};
+
+namespace std {
+    template <>
+    struct hash<Message> {
+        std::size_t operator()(const Message &msg) const {
+            size_t size_to_hash = std::min<size_t>(msg.payload.size(), 512);
+            return std::hash<std::string_view>()(
+                std::string_view(reinterpret_cast<const char*>(msg.payload.data()), size_to_hash)
+            );
+        }
+    };
+}
+
+
+Message deserialize_message(const std::vector<uint8_t>& raw);
 
 #endif // !1

@@ -5,6 +5,12 @@
 #include <thread>
 #include <atomic>
 #include <vector>
+#include <fstream>
+#include <filesystem>  // C++17
+#include <distrifein/utils.hpp>
+#include <distrifein/message.hpp>
+
+namespace fs = std::filesystem;
 
 enum class BroadcasterType
 {
@@ -18,24 +24,27 @@ template <typename T>
 class Application
 {
 public:
-    Application(T &broadcaster, EventBus &eventBus);
+    Application(T &broadcaster, EventBus &eventBus, int node_id);
     void decode(const Event &event, BroadcasterType type);
     void run();
 
 private:
+    int node_id;
     std::atomic<bool> running;
     Logger &logger = Logger::getInstance();
     T &broadcaster;
     EventBus &eventBus;
     BroadcasterType broadcasterType; // <-- Add this
+
+    void handle_text_message_input();
+    void handle_image_message_input();
 };
 
 template <typename T>
-Application<T>::Application(T &broadcaster, EventBus &eventBus)
-    : broadcaster(broadcaster), eventBus(eventBus), running(true)
+Application<T>::Application(T &broadcaster, EventBus &eventBus, int node_id)
+    : broadcaster(broadcaster), eventBus(eventBus), running(true), node_id(node_id)
 {
-    logger.log("[App] Initialized with broadcaster type: " + std::string(typeid(T).name()));
-    logger.log("[App] Subscribing to events...");
+
     if (std::is_same<T, UniformReliableBroadcaster>::value)
     {
         broadcasterType = BroadcasterType::UniformReliableBroadcast;
@@ -58,32 +67,113 @@ Application<T>::Application(T &broadcaster, EventBus &eventBus)
     {
         logger.log("[Error] Unknown broadcaster type.");
     }
+
+    logger.log("[App] Initialized with " + std::string(typeid(T).name()) + "...");
 }
 
 template <typename T>
 void Application<T>::decode(const Event &event, BroadcasterType type)
 {
-    if (type == BroadcasterType::UniformReliableBroadcast)
-    {
-        ReliableBroadcastMessage message;
-        std::memcpy(&message, event.payload.data(), sizeof(ReliableBroadcastMessage));
-        message.message[sizeof(message.message) - 1] = '\0'; // Ensure null termination
-        logger.log("[App] Received message: " + std::string(message.message));
+    Message message = deserialize_message(event.payload);
+    if (message.header.type == MessageType::TEXT_MESSAGE){
+        std::string text_message(reinterpret_cast<char *>(message.payload.data()));
+        logger.log("[App] Delivering text message:" + text_message);
+    } else if (message.header.type == MessageType::IMAGE_MESSAGE){
+        // Construct node-specific folder path
+        std::string folder_name = "node_" + std::to_string(node_id);
+
+        // Create folder if it doesn't exist
+        fs::create_directories(folder_name);
+
+        // Construct file name using timestamp to avoid overwrite
+        std::string filename = folder_name + "/received_" + std::to_string(message.header.timestamp) + ".ppm";
+
+        // Write image data to file
+        std::ofstream output(filename, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(message.payload.data()), message.payload.size());
+        output.close();
+        logger.log("[App] Delivering image message and saved to " + filename);
+    } else {
+        logger.log("[App] Delivering some other message type.");
     }
-    else if (type == BroadcasterType::ReliableBroadcast)
+}
+
+template <typename T>
+void Application<T>::handle_text_message_input()
+{
+    std::cout << "Enter text message: ";
+    std::string line;
+    std::getline(std::cin, line);
+    if (line.empty())
+        return;
+
+    Message msg;
+    msg.header.type = MessageType::TEXT_MESSAGE;
+    msg.header.sender_id = this->node_id;
+    msg.header.original_sender_id = this->node_id;
+    msg.header.recipient_id = 0; 
+    generate_message_id(msg.header.message_id);
+    msg.header.timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+    msg.header.chunk_index = 0;  // Set chunk index (0 for single chunk)
+    msg.header.total_chunks = 1; // Set total chunks (1 for single chunk)
+    msg.header.crc32 = 0;        // Set CRC32 (0 for now, can be calculated later)
+    msg.header.payload_size = line.size();
+    msg.payload.assign(line.begin(), line.end());
+    msg.payload.push_back('\0');
+    msg.header.payload_size = msg.payload.size(); // now includes null terminator
+
+    std::vector<uint8_t> payload;
+    payload.resize(sizeof(MessageHeader) + msg.payload.size());
+
+    std::memcpy(payload.data(), &msg.header, sizeof(MessageHeader));
+    std::memcpy(payload.data() + sizeof(MessageHeader), msg.payload.data(), msg.payload.size());
+
+    Event event(EventType::APP_SEND_EVENT, payload);
+    eventBus.publish(event);
+}
+
+template <typename T>
+void Application<T>::handle_image_message_input()
+{
+    std::cout << "Enter image filename (e.g., image.ppm): ";
+    std::string line;
+    std::getline(std::cin, line);
+    if (line.empty())
+        return;
+
+    std::cout << "PPM filename found: " << line << "\n";
+    Message msg;
+    std::ifstream ppm_file(line, std::ios::binary);
+    if (!ppm_file)
     {
-        ReliableBroadcastMessage message;
-        std::memcpy(&message, event.payload.data(), sizeof(ReliableBroadcastMessage));
-        message.message[sizeof(message.message) - 1] = '\0'; // Ensure null termination
-        logger.log("[App] Received message: " + std::string(message.message));
+        std::cerr << "Error: Could not open file " << line << "\n";
+        return;
     }
-    else if (type == BroadcasterType::BestEffortBroadcast)
-    {
-        BestEffortBroadcastMessage message;
-        std::memcpy(&message, event.payload.data(), sizeof(BestEffortBroadcastMessage));
-        message.message[sizeof(message.message) - 1] = '\0'; // Ensure null termination
-        logger.log("[App] Received message: " + std::string(message.message));
-    }
+
+    // Read entire file into msg.payload
+    msg.payload = std::vector<uint8_t>(
+        std::istreambuf_iterator<char>(ppm_file),
+        std::istreambuf_iterator<char>());
+
+    msg.header.payload_size = msg.payload.size();
+    msg.header.type = MessageType::IMAGE_MESSAGE;
+    msg.header.sender_id = this->node_id;
+    msg.header.original_sender_id = this->node_id;
+    msg.header.recipient_id = 0;
+    generate_message_id(msg.header.message_id);
+    msg.header.timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+    msg.header.chunk_index = 0;
+    msg.header.total_chunks = 1;
+    msg.header.crc32 = 0; // Optional: implement CRC if needed
+
+    std::vector<uint8_t> payload;
+    payload.resize(sizeof(MessageHeader) + msg.payload.size());
+
+    std::memcpy(payload.data(), &msg.header, sizeof(MessageHeader));
+    std::memcpy(payload.data() + sizeof(MessageHeader), msg.payload.data(), msg.payload.size());
+
+    Event event(EventType::APP_SEND_EVENT, payload);
+    eventBus.publish(event);
 }
 
 template <typename T>
@@ -93,64 +183,24 @@ void Application<T>::run()
     logger.log("[App] Entering input loop. Type 'exit' to quit.");
     while (running)
     {
+        logger.log("[App] Select Message Type: \n1. Text Message\n2. Image Message\n3. Exit");
         std::getline(std::cin, line);
         if (line.empty())
             continue;
 
-        logger.log("[App] Input: " + line);
-
-        if (line == "exit")
+        if (line == "1")
+        {
+            handle_text_message_input();
+        }
+        else if (line == "2")
+        {
+            handle_image_message_input();
+        }
+        else if (line == "3")
         {
             logger.log("[App] Exit requested.");
             running = false;
             break;
-        }
-
-        if constexpr (std::is_same<T, UniformReliableBroadcaster>::value){
-            // For ReliableBroadcaster, we need to create a ReliableBroadcastMessage
-            ReliableBroadcastMessage msg;
-            msg.senderPort = broadcaster.getServer().getSelfPort(); // Set sender port
-            msg.originalSenderPort = msg.senderPort;                // Set original sender port
-            msg.message[0] = '\0';                                  // Initialize message buffer
-            std::strncpy(msg.message, line.c_str(), sizeof(msg.message) - 1);
-            msg.message[sizeof(msg.message) - 1] = '\0'; // Ensure null termination
-
-            std::vector<uint8_t> payload(sizeof(msg));
-            std::memcpy(payload.data(), &msg, sizeof(msg));
-            Event event(EventType::APP_SEND_EVENT, payload);
-            eventBus.publish(event);
-        }
-        else if constexpr (std::is_same<T, ReliableBroadcaster>::value)
-        {
-            // For ReliableBroadcaster, we need to create a ReliableBroadcastMessage
-            ReliableBroadcastMessage msg;
-            msg.senderPort = broadcaster.getServer().getSelfPort(); // Set sender port
-            msg.originalSenderPort = msg.senderPort;                // Set original sender port
-            msg.message[0] = '\0';                                  // Initialize message buffer
-            std::strncpy(msg.message, line.c_str(), sizeof(msg.message) - 1);
-            msg.message[sizeof(msg.message) - 1] = '\0'; // Ensure null termination
-
-            std::vector<uint8_t> payload(sizeof(msg));
-            std::memcpy(payload.data(), &msg, sizeof(msg));
-            Event event(EventType::APP_SEND_EVENT, payload);
-            eventBus.publish(event);
-            continue;
-        }
-        else if constexpr (std::is_same<T, BestEffortBroadcaster>::value)
-        {
-            // For BestEffortBroadcaster, we need to create a BestEffortBroadcastMessage
-            BestEffortBroadcastMessage msg;
-            std::strncpy(msg.message, line.c_str(), sizeof(msg.message) - 1);
-            std::vector<uint8_t> payload(sizeof(msg));
-            std::memcpy(payload.data(), &msg, sizeof(msg));
-            Event event(EventType::APP_SEND_EVENT, payload);
-            eventBus.publish(event);
-            continue;
-        }
-        else
-        {
-            logger.log("[Error] Unknown broadcaster type.");
-            continue;
         }
     }
 }

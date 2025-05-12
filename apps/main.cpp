@@ -26,19 +26,18 @@ int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        cout << "Usage: ./beb <node_id> <port> <peer_ports_comma_separated> <test_type>\n";
+        cout << "Usage: ./beb <node_id> <peer_node_ids_comma_separated> <test_type>\n";
         return 1;
     }
 
     int node_id = atoi(argv[1]);
-    int port = atoi(argv[2]);
-    vector<int> peers = split_peers_string(argv[3], ',');
-    int test_type = atoi(argv[4]);
+    vector<int> peer_ids = split_peers_string(argv[2], ',');
+    int test_type = atoi(argv[3]);
 
     if (debug)
     {
-        cout << "Node ID: " << node_id << "\nPort: " << port << "\nPeers: ";
-        for (int p : peers)
+        cout << "Node ID: " << node_id << "\nPort: " << id_to_port[node_id] << "\nPeers: ";
+        for (int p : peer_ids)
             cout << p << " ";
         cout << endl;
     }
@@ -49,30 +48,30 @@ int main(int argc, char *argv[])
 
     if (test_type == 0)
     {
-        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        TcpServer server(node_id, peer_ids, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
         BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::APP_SEND_EVENT});
-        Application app(beb, eventBus); // Create the application with the ReliableBroadcaster
+        Application app(beb, eventBus, node_id); // Create the application with the ReliableBroadcaster
         server.startServer();
         app.run();
     }
     else if (test_type == 1)
     {
-        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        TcpServer server(node_id, peer_ids, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
         BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::RB_SEND_EVENT});
         FailureDetector detector(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {});
-        ReliableBroadcaster rb(beb, detector, peers, port, eventBus);
-        Application app(rb, eventBus); // Create the application with the ReliableBroadcaster
+        ReliableBroadcaster rb(beb, detector, peer_ids, eventBus, node_id);
+        Application app(rb, eventBus, node_id); // Create the application with the ReliableBroadcaster
 
         server.startServer();
         detector.start();
         app.run();
     } else if(test_type == 2)
     {
-        TcpServer server(port, peers, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
+        TcpServer server(node_id, peer_ids, eventBus, {}, {EventType::BEB_SEND_EVENT, EventType::FD_SEND_EVENT});
         BestEffortBroadcaster beb(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {EventType::URB_SEND_EVENT});
         FailureDetector detector(server, eventBus, {EventType::P2P_DELIVER_EVENT}, {});
-        UniformReliableBroadcaster urb(beb, detector, peers, port, eventBus);
-        Application app(urb, eventBus); // Create the application with the ReliableBroadcaster
+        UniformReliableBroadcaster urb(beb, detector, peer_ids, node_id, eventBus);
+        Application app(urb, eventBus, node_id); // Create the application with the ReliableBroadcaster
 
         server.startServer();
         detector.start();

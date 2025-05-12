@@ -1,11 +1,10 @@
 #include <iostream>
+#include <sstream>
 #include <distrifein/fd.hpp>
 #include <distrifein/message.hpp>
+#include <distrifein/utils.hpp>
 
-#include <iostream>
-#include <sstream>
-
-FailureDetector::FailureDetector(TcpServer &server, EventBus &eventBus,  std::vector<EventType> deliver_events, std::vector<EventType> send_events,int timeoutMs, int intervalMs)
+FailureDetector::FailureDetector(TcpServer &server, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events, int timeoutMs, int intervalMs)
     : server(server), eventBus(eventBus), timeoutMs(timeoutMs), intervalMs(intervalMs), running(false), deliver_events(deliver_events), send_events(send_events)
 {
     logger.log("[FD] Initialized with timeout: " + std::to_string(timeoutMs) + "ms, interval: " + std::to_string(intervalMs) + "ms");
@@ -18,10 +17,9 @@ FailureDetector::FailureDetector(TcpServer &server, EventBus &eventBus,  std::ve
 
     for (auto &eventType : send_events)
     {
-        eventBus.subscribe(eventType, [this](const Event &event)
-                           { //this->handleMessage(event); 
-                                logger.log("[FD] unexpected subscription sending message!");
-                           });
+        eventBus.subscribe(eventType, [this](const Event &event) { // this->handleMessage(event);
+            logger.log("[FD] unexpected subscription sending message!");
+        });
     }
 }
 
@@ -41,18 +39,31 @@ void FailureDetector::stop()
 
 void FailureDetector::sendHeartbeats()
 {
-    HeartbeatMessage heartbeatMessage;
-    heartbeatMessage.senderPort = server.getSelfPort();
-    std::vector<uint8_t> payload(reinterpret_cast<uint8_t *>(&heartbeatMessage), reinterpret_cast<uint8_t *>(&heartbeatMessage) + sizeof(heartbeatMessage));
+    std::string line = "heartbeat";
+    Message msg;
+    msg.header.type = MessageType::HEARTBEAT_MESSAGE;
+    msg.header.sender_id = server.getSelfId(); 
+    msg.header.recipient_id = 0; 
+    generate_message_id(msg.header.message_id);
+    msg.header.timestamp = std::chrono::system_clock::now().time_since_epoch().count();
+    msg.header.chunk_index = 0;  // Set chunk index (0 for single chunk)
+    msg.header.total_chunks = 1; // Set total chunks (1 for single chunk)
+    msg.header.crc32 = 0;        // Set CRC32 (0 for now, can be calculated later)
+    msg.header.payload_size = line.size();
+    msg.payload.assign(line.begin(), line.end());
+    msg.payload.push_back('\0');
+    msg.header.payload_size = msg.payload.size(); // now includes null terminator
+
+    std::vector<uint8_t> payload;
+    payload.resize(sizeof(MessageHeader) + msg.payload.size());
+
+    std::memcpy(payload.data(), &msg.header, sizeof(MessageHeader));
+    std::memcpy(payload.data() + sizeof(MessageHeader), msg.payload.data(), msg.payload.size());
+
     Event event(EventType::FD_SEND_EVENT, payload);
     Event event_fd(EventType::FD_SEND_EVENT, event.payload);
     while (running)
     {
-        // for (int peerPort : server.getPeers())
-        // {
-        //     server.sendMessage("127.0.0.1", peerPort, event)D;
-        // }
-        
         this->eventBus.publish(event_fd);
         std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
     }
@@ -66,23 +77,23 @@ void FailureDetector::monitorHeartbeats()
     {
         auto now = std::chrono::steady_clock::now();
 
-        for (int peerPort : server.getPeers())
+        for (int peerId : server.getPeerIds())
         {
-            auto it = lastHeartbeat.find(peerPort);
+            auto it = lastHeartbeat.find(peerId);
             bool heartbeatMissing = (it == lastHeartbeat.end() || std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second).count() > timeoutMs);
 
-            if (heartbeatMissing && crashedPeers.find(peerPort) == crashedPeers.end())
+            if (heartbeatMissing && crashedPeerIds.find(peerId) == crashedPeerIds.end())
             {
                 // logger.log("[FD] Peer " + std::to_string(peerPort) + " is suspected to be down.");
-                
+
                 // Trigger a process crash event
                 ProcessCrashEvent processCrashEvent;
-                processCrashEvent.processId = peerPort;
+                processCrashEvent.processId = peerId;
                 std::vector<uint8_t> payload(reinterpret_cast<uint8_t *>(&processCrashEvent), reinterpret_cast<uint8_t *>(&processCrashEvent) + sizeof(processCrashEvent));
                 Event event(EventType::PROCESS_CRASH_EVENT, payload);
                 eventBus.publish(event);
 
-                crashedPeers.insert(peerPort);
+                crashedPeerIds.insert(peerId);
             }
         }
 
@@ -90,15 +101,14 @@ void FailureDetector::monitorHeartbeats()
     }
 }
 
-void FailureDetector::handleMessage(const Event& event)
+void FailureDetector::handleMessage(const Event &event)
 {
-    if (event.payload.size() < sizeof(HeartbeatMessage))
+    if (event.payload.size() < sizeof(MessageHeader))
     {
         logger.log("[FD] Error: Payload size is less than expected.");
         return;
     }
-    HeartbeatMessage heartbeatMessage;
-    std::memcpy(&heartbeatMessage, event.payload.data(), sizeof(HeartbeatMessage));
-    int senderPort = heartbeatMessage.senderPort;
-    lastHeartbeat[senderPort] = std::chrono::steady_clock::now();
+    Message heartbeatMessage = deserialize_message(event.payload);
+    int sender_id = heartbeatMessage.header.sender_id;
+    lastHeartbeat[sender_id] = std::chrono::steady_clock::now();
 }
