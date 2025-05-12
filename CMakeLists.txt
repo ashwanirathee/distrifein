@@ -9,7 +9,7 @@ option(BUILD_EXAMPLES "Build examples" ON)
 option(BUILD_TESTS "Build tests" ON)
 
 # Get all .cpp files in src/
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES "src/*.cc")
 
 # Add them to the library
 add_library(distrifein ${SOURCES})
@@ -26,7 +26,7 @@ target_include_directories(distrifein
 # ========================================
 if(BUILD_EXAMPLES)
     # Get all .cpp files in src/
-    file(GLOB SOURCES "apps/*.cpp")
+    file(GLOB SOURCES "apps/*.cc")
 
     add_executable(main ${SOURCES})
     target_link_libraries(main PRIVATE distrifein)

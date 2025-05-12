@@ -1,4 +1,4 @@
-#include <distrifein/message.hpp>
+#include <distrifein/message.h>
 #include <iostream>
 
 

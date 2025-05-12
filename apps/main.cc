@@ -4,18 +4,18 @@
 #include <vector>
 #include <string>
 
-#include <distrifein/beb.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/fd.hpp>
-#include <distrifein/network.hpp>
-#include <distrifein/utils.hpp>
-#include <distrifein/logger.hpp>
-#include <distrifein/rb.hpp>
-#include <distrifein/eventbus.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/urb.hpp>
+#include <distrifein/beb.h>
+#include <distrifein/event.h>
+#include <distrifein/fd.h>
+#include <distrifein/network.h>
+#include <distrifein/utils.h>
+#include <distrifein/logger.h>
+#include <distrifein/rb.h>
+#include <distrifein/eventbus.h>
+#include <distrifein/event.h>
+#include <distrifein/urb.h>
 
-#include "app.hpp"
+#include "app.h"
 
 using namespace std;
 

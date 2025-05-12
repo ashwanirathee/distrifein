@@ -4,13 +4,13 @@
 #include <unordered_set>
 #include <vector>
 
-#include <distrifein/beb.hpp>
-#include <distrifein/fd.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
-#include <distrifein/logger.hpp>
-#include <distrifein/message.hpp>
-#include <distrifein/orderedset.hpp>
+#include <distrifein/beb.h>
+#include <distrifein/fd.h>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
+#include <distrifein/logger.h>
+#include <distrifein/message.h>
+#include <distrifein/orderedset.h>
 
 // Custom comparator for (originalSenderPort, message)
 struct PendingComparator

@@ -1,12 +1,12 @@
 #ifndef FD_HPP
 #define FD_HPP
 
-#include <distrifein/network.hpp>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <unordered_set>
+#include <distrifein/network.h>
 
 class FailureDetector
 {

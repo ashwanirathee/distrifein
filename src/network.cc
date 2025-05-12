@@ -7,9 +7,9 @@
 #include <atomic>
 #include <thread>
 
-#include <distrifein/network.hpp>
-#include <distrifein/message.hpp>
-#include <distrifein/utils.hpp>
+#include <distrifein/network.h>
+#include <distrifein/message.h>
+#include <distrifein/utils.h>
 TcpServer::TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events)
     : node_id(node_id), peer_ids(peer_ids), eventBus(eventBus), running(true), deliver_events(deliver_events), send_events(send_events)
 {

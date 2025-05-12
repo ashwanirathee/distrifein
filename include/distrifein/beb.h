@@ -2,10 +2,10 @@
 #define BEB_HPP
 
 #include <string>
-#include <distrifein/network.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
-#include <distrifein/message.hpp>
+#include <distrifein/network.h>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
+#include <distrifein/message.h>
 
 class BestEffortBroadcaster
 {

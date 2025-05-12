@@ -1,5 +1,5 @@
-#include <distrifein/rb.hpp>
-#include <distrifein/utils.hpp>
+#include <distrifein/rb.h>
+#include <distrifein/utils.h>
 
 ReliableBroadcaster::ReliableBroadcaster(BestEffortBroadcaster &beb, FailureDetector &fd, std::vector<int> peer_ids, EventBus &eventBus, int node_id)
     : beb(beb), fd(fd), peer_ids(peer_ids), eventBus(eventBus), node_id(node_id)
@@ -38,7 +38,7 @@ TcpServer &ReliableBroadcaster::getServer()
 }
 void ReliableBroadcaster::broadcast(const Event &event)
 {
-    logger.log("[RB] Broadcasting Message!");
+    // logger.log("[RB] Broadcasting Message!");
     Message message = deserialize_message(event.payload);
 
     // delivered := delivered U {m}
@@ -54,6 +54,9 @@ void ReliableBroadcaster::broadcast(const Event &event)
 
 void ReliableBroadcaster::deliver(const Event &event)
 {
+    // logger.log("[RB] Delivering Message!");
+
+    // trigger < deliver (x, m) >
     Event event_beb(EventType::RB_DELIVER_EVENT, event.payload);
     this->eventBus.publish(event_beb);
 }

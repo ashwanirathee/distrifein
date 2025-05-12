@@ -1,6 +1,6 @@
 #include <iostream>
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
 
 void EventBus::subscribe(EventType eventType, EventCallback callback)
 {

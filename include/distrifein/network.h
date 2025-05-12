@@ -11,9 +11,9 @@
 #include <thread>
 #include <unordered_set>
 
-#include <distrifein/logger.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
+#include <distrifein/logger.h>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
 
 class TcpServer
 {

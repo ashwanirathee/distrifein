@@ -1,8 +1,8 @@
 #include <iostream>
 #include <sstream>
-#include <distrifein/fd.hpp>
-#include <distrifein/message.hpp>
-#include <distrifein/utils.hpp>
+#include <distrifein/fd.h>
+#include <distrifein/message.h>
+#include <distrifein/utils.h>
 
 FailureDetector::FailureDetector(TcpServer &server, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events, int timeoutMs, int intervalMs)
     : server(server), eventBus(eventBus), timeoutMs(timeoutMs), intervalMs(intervalMs), running(false), deliver_events(deliver_events), send_events(send_events)
@@ -42,8 +42,8 @@ void FailureDetector::sendHeartbeats()
     std::string line = "heartbeat";
     Message msg;
     msg.header.type = MessageType::HEARTBEAT_MESSAGE;
-    msg.header.sender_id = server.getSelfId(); 
-    msg.header.recipient_id = 0; 
+    msg.header.sender_id = server.getSelfId();
+    msg.header.recipient_id = 0;
     generate_message_id(msg.header.message_id);
     msg.header.timestamp = std::chrono::system_clock::now().time_since_epoch().count();
     msg.header.chunk_index = 0;  // Set chunk index (0 for single chunk)
@@ -87,9 +87,9 @@ void FailureDetector::monitorHeartbeats()
                 // logger.log("[FD] Peer " + std::to_string(peerPort) + " is suspected to be down.");
 
                 // Trigger a process crash event
-                ProcessCrashEvent processCrashEvent;
-                processCrashEvent.processId = peerId;
-                std::vector<uint8_t> payload(reinterpret_cast<uint8_t *>(&processCrashEvent), reinterpret_cast<uint8_t *>(&processCrashEvent) + sizeof(processCrashEvent));
+                ProcessCrashEvent process_crash_event;
+                process_crash_event.processId = peerId;
+                std::vector<uint8_t> payload(reinterpret_cast<uint8_t *>(&process_crash_event), reinterpret_cast<uint8_t *>(&process_crash_event) + sizeof(process_crash_event));
                 Event event(EventType::PROCESS_CRASH_EVENT, payload);
                 eventBus.publish(event);
 
@@ -108,7 +108,7 @@ void FailureDetector::handleMessage(const Event &event)
         logger.log("[FD] Error: Payload size is less than expected.");
         return;
     }
-    Message heartbeatMessage = deserialize_message(event.payload);
-    int sender_id = heartbeatMessage.header.sender_id;
+    Message heartbeat_message = deserialize_message(event.payload);
+    int sender_id = heartbeat_message.header.sender_id;
     lastHeartbeat[sender_id] = std::chrono::steady_clock::now();
 }

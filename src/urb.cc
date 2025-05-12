@@ -1,4 +1,4 @@
-#include <distrifein/urb.hpp>
+#include <distrifein/urb.h>
 
 UniformReliableBroadcaster::UniformReliableBroadcaster(BestEffortBroadcaster &beb, FailureDetector &fd, std::vector<int> peers, int node_id, EventBus &eventBus)
     : beb(beb), fd(fd), peerIds(peers), node_id(node_id), eventBus(eventBus)
@@ -35,11 +35,11 @@ TcpServer &UniformReliableBroadcaster::getServer()
 
 void UniformReliableBroadcaster::broadcast(const Event &event)
 {
-    Message rbm = deserialize_message(event.payload);
     logger.log("[URB] Broadcasting Message!");
+    Message urb_msg = deserialize_message(event.payload);
 
     // pending := pending U {[self,m]}
-    pending.insert(rbm); 
+    pending.insert(urb_msg);
 
     // trigger < beb, broadcast ([self, m]) >
     Event event_rbs(EventType::URB_SEND_EVENT, event.payload);
@@ -49,6 +49,8 @@ void UniformReliableBroadcaster::broadcast(const Event &event)
 void UniformReliableBroadcaster::deliver(const Event &event)
 {
     logger.log("[URB] Delivering Message!");
+
+    // trigger < deliver (x, m) >
     Event event_beb(EventType::URB_DELIVER_EVENT, event.payload);
     this->eventBus.publish(event_beb);
 }
@@ -75,51 +77,53 @@ void UniformReliableBroadcaster::handleCrashEvent(const Event &event)
 void UniformReliableBroadcaster::tryDelivery()
 {
     logger.log("[URB] Message delivey attempt");
-    
+
     // foreach ([pj,m] in pending)
-    for (const auto &message : pending){
+    for (const auto &message : pending)
+    {
         // ack[m] := ack[m] U {pi}
         std::size_t size_to_hash = std::min<std::size_t>(message.payload.size(), 512);
-        std::string_view payload_view(reinterpret_cast<const char*>(message.payload.data()), size_to_hash);
+        std::string_view payload_view(reinterpret_cast<const char *>(message.payload.data()), size_to_hash);
         std::vector<uint8_t> payloadVector(payload_view.begin(), payload_view.end());
         std::size_t hashValue = hasher(payloadVector, message.header.original_sender_id);
         ack[hashValue].insert(message.header.sender_id); // Add to ack set
 
         // if (correct ack[m] and m ∉ delivered)
-        if (is_subset(correct, ack[hashValue]) && delivered.find(message) == delivered.end()){
+        if (is_subset(correct, ack[hashValue]) && delivered.find(message) == delivered.end())
+        {
             logger.log("[URB] Message is being delivered!");
             //     delivered := delivered U {m}
             this->delivered.insert(message); // Add to delivered set
-            
+
             //     trigger <deliver (pj, m)>
             std::vector<uint8_t> payload;
             payload.resize(sizeof(MessageHeader) + message.payload.size());
-    
+
             std::memcpy(payload.data(), &message.header, sizeof(MessageHeader));
             std::memcpy(payload.data() + sizeof(MessageHeader), message.payload.data(), message.payload.size());
-            
+
             Event event_urb(EventType::URB_DELIVER_EVENT, payload);
             this->deliver(event_urb); // Deliver to self
-        } else {
+        }
+        else
+        {
             // logger.log("[URB] Message not delivered yet and correct is not a subset of ack[m]");
             logger.log("[URB] Message can't be delivered yet!");
         }
-
     }
-
 }
 
 void UniformReliableBroadcaster::handleBEBDeliverEvent(const Event &event)
 {
     // logger.log("[URB] Handling BEB Deliver Event!");
     Message message = deserialize_message(event.payload);
-    if (message.header.type == MessageType::HEARTBEAT_MESSAGE) return;
+    if (message.header.type == MessageType::HEARTBEAT_MESSAGE)
+        return;
 
-    
     // logger.log("[URB] Received message: " + std::string(message.message));
     // ack[m] := ack[m] U {pi}
     std::size_t size_to_hash = std::min<std::size_t>(message.payload.size(), 512);
-    std::string_view payload_view(reinterpret_cast<const char*>(message.payload.data()), size_to_hash);
+    std::string_view payload_view(reinterpret_cast<const char *>(message.payload.data()), size_to_hash);
     std::vector<uint8_t> payloadVector(payload_view.begin(), payload_view.end());
     std::size_t hashValue = hasher(payloadVector, message.header.original_sender_id);
     ack[hashValue].insert(message.header.sender_id); // Add to ack set
@@ -129,7 +133,7 @@ void UniformReliableBroadcaster::handleBEBDeliverEvent(const Event &event)
     // }
     logger.log("[RB] SID: " + std::to_string(message.header.sender_id) + ", Org SID: " + std::to_string(message.header.original_sender_id));
 
-    logger.log("[RB] Current Message ID: " + std::string(message.header.message_id)+ ",size: " + std::to_string(message.payload.size()));
+    logger.log("[RB] Current Message ID: " + std::string(message.header.message_id) + ",size: " + std::to_string(message.payload.size()));
     for (auto &msg_id : delivered)
     {
         logger.log("[RB] Delivered Message ID: " + std::string(msg_id.header.message_id));
@@ -139,7 +143,6 @@ void UniformReliableBroadcaster::handleBEBDeliverEvent(const Event &event)
     {
         logger.log("[RB] Pending Message ID: " + std::string(msg_id.header.message_id));
     }
-    
 
     // logger.log("[URB] ack[m] size: " + std::to_string(ack[hashValue].size()));
     if (pending.find(message) == pending.end())
@@ -154,12 +157,13 @@ void UniformReliableBroadcaster::handleBEBDeliverEvent(const Event &event)
 
         std::memcpy(payload.data(), &message.header, sizeof(MessageHeader));
         std::memcpy(payload.data() + sizeof(MessageHeader), message.payload.data(), message.payload.size());
-    
 
         // trigger < beb, broadcast ([pj,m]) >
         Event event_rbs(EventType::URB_SEND_EVENT, payload);
         this->eventBus.publish(event_rbs); // Publish the event to the event bus
-    } else {
+    }
+    else
+    {
         logger.log("[URB] Message in pending {}");
         tryDelivery();
     }

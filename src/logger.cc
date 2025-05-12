@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <sstream>
 
-#include <distrifein/logger.hpp>
+#include <distrifein/logger.h>
 
 Logger &Logger::getInstance()
 {

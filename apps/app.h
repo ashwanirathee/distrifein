@@ -7,8 +7,8 @@
 #include <vector>
 #include <fstream>
 #include <filesystem>  // C++17
-#include <distrifein/utils.hpp>
-#include <distrifein/message.hpp>
+#include <distrifein/utils.h>
+#include <distrifein/message.h>
 
 namespace fs = std::filesystem;
 
