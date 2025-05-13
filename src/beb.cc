@@ -1,4 +1,4 @@
-#include <distrifein/beb.hpp>
+#include <distrifein/beb.h>
 #include <iostream>
 
 BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventBus,
@@ -20,8 +20,7 @@ BestEffortBroadcaster::BestEffortBroadcaster(TcpServer &server, EventBus &eventB
 
 void BestEffortBroadcaster::broadcast(const Event &event)
 {
-
-    logger.log("[BEB] Broadcasting Message!");
+    // logger.log("[BEB] Broadcasting Message!");
 
     Event event_selfbeb(EventType::BEB_DELIVER_EVENT, event.payload);
     this->eventBus.publish(event_selfbeb);
@@ -32,12 +31,9 @@ void BestEffortBroadcaster::broadcast(const Event &event)
 
 void BestEffortBroadcaster::deliver(const Event &event)
 {
-    if (event.payload.size() < 30)
-    {
-        // logger.log("[BEB] Those are heartbeat messages.");
-        return;
-    }
-    logger.log("[BEB] Delivering Message!");
+    // logger.log("[BEB] Delivering Message!");
+
+    // trigger < deliver (x, m) >
     Event event_beb(EventType::BEB_DELIVER_EVENT, event.payload);
     this->eventBus.publish(event_beb);
 }

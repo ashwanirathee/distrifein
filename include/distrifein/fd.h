@@ -1,12 +1,12 @@
 #ifndef FD_HPP
 #define FD_HPP
 
-#include <distrifein/network.hpp>
 #include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <mutex>
 #include <unordered_set>
+#include <distrifein/network.h>
 
 class FailureDetector
 {
@@ -24,7 +24,7 @@ private:
     std::atomic<bool> running;
     std::unordered_map<int, std::chrono::steady_clock::time_point> lastHeartbeat;
     Logger &logger = Logger::getInstance();
-    std::unordered_set<int> crashedPeers;
+    std::unordered_set<int> crashedPeerIds;
     std::vector<EventType> deliver_events;
     std::vector<EventType> send_events;
 

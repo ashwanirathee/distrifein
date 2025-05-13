@@ -4,34 +4,40 @@
 #include <unordered_set>
 #include <vector>
 
-#include <distrifein/beb.hpp>
-#include <distrifein/fd.hpp>
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
-#include <distrifein/logger.hpp>
-#include <distrifein/message.hpp>
-#include <distrifein/orderedset.hpp>
+#include <distrifein/beb.h>
+#include <distrifein/fd.h>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
+#include <distrifein/logger.h>
+#include <distrifein/message.h>
+#include <distrifein/orderedset.h>
 
 // Custom comparator for (originalSenderPort, message)
 struct PendingComparator
 {
-    bool operator()(const ReliableBroadcastMessage& a, const ReliableBroadcastMessage& b) const
+    bool operator()(const Message& a, const Message& b) const
     {
-        return (a.originalSenderPort == b.originalSenderPort) &&
-               (std::memcmp(a.message, b.message, 512) == 0);
+        return (a.header.original_sender_id == b.header.original_sender_id) && a.payload.size() == b.payload.size() &&
+        std::memcmp(a.payload.data(), b.payload.data(), a.payload.size()) == 0;
     }
 };
 
 // Custom hasher for (originalSenderPort, message)
 struct PendingHasher
 {
-    std::size_t operator()(const ReliableBroadcastMessage& msg) const
+    std::size_t operator()(const Message& msg) const
     {
-        std::size_t h1 = std::hash<int32_t>{}(msg.originalSenderPort);
-        std::size_t h2 = std::hash<std::string_view>{}(std::string_view(msg.message, 512));
+        std::size_t h1 = std::hash<int32_t>{}(msg.header.original_sender_id);
+
+        std::size_t size_to_hash = std::min<std::size_t>(msg.payload.size(), 512);
+        std::string_view payload_view(reinterpret_cast<const char*>(msg.payload.data()), size_to_hash);
+        std::size_t h2 = std::hash<std::string_view>{}(payload_view);
+
+        // Combine the two hashes using the Boost-like hash combine formula
         return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
     }
 };
+
 
 template<typename T>
 bool is_subset(const std::unordered_set<T>& subset, const std::unordered_set<T>& superset)
@@ -56,16 +62,16 @@ public:
     
     TcpServer& getServer();
 private:
-    int self_port;
-    std::vector<int> peers;
+    int node_id;
+    std::vector<int> peerIds;
     BestEffortBroadcaster &beb;
     FailureDetector &fd;
     Logger &logger = Logger::getInstance();
     EventBus &eventBus;
     PayloadHasher hasher;
     void tryDelivery();
-    std::unordered_set<ReliableBroadcastMessage> delivered; // Set of delivered messages
-    std::unordered_set<ReliableBroadcastMessage, PendingHasher, PendingComparator> pending; // Set of pending messages
+    std::unordered_set<Message> delivered; // Set of delivered messages
+    std::unordered_set<Message, PendingHasher, PendingComparator> pending; // Set of pending messages
 
     std::unordered_map<std::size_t, std::unordered_set<int32_t>> ack; // from[pi] := ∅
     std::unordered_set<int> correct; // Set of correct nodes

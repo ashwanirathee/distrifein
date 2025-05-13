@@ -1,5 +1,5 @@
 #include <iostream>
-#include <distrifein/beb.hpp>
+#include <distrifein/beb.h>
 
 int main(int argc, char *argv[])
 {

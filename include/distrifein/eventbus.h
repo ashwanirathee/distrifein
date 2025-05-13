@@ -5,9 +5,9 @@
 
 // EventBus.hpp
 #pragma once
-#include <distrifein/event.hpp>
-#include <distrifein/eventbus.hpp>
-#include <distrifein/logger.hpp>
+#include <distrifein/event.h>
+#include <distrifein/eventbus.h>
+#include <distrifein/logger.h>
 
 class EventBus
 {
