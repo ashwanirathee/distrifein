@@ -1,0 +1,8 @@
+site_name: distrifein
+site_url: https://ashwanirathee.com/distrifein/
+nav:
+  - Home: about.md
+  - Page: page.md
+theme:
+  name: readthedocs
+use_directory_urls: true
