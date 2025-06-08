@@ -29,7 +29,11 @@ if(BUILD_EXAMPLES)
     file(GLOB SOURCES "apps/*.cc")
 
     add_executable(main ${SOURCES})
-    target_link_libraries(main PRIVATE distrifein uuid)
+    target_link_libraries(main PRIVATE distrifein)
+
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+        target_link_libraries(main PRIVATE uuid)
+    endif()
 endif()
 
 # ========================================
