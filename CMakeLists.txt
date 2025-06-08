@@ -29,7 +29,7 @@ if(BUILD_EXAMPLES)
     file(GLOB SOURCES "apps/*.cc")
 
     add_executable(main ${SOURCES})
-    target_link_libraries(main PRIVATE distrifein)
+    target_link_libraries(main PRIVATE distrifein uuid)
 endif()
 
 # ========================================

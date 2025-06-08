@@ -1,6 +1,7 @@
 #include <charconv>
 #include <distrifein/utils.h>
 #include <uuid/uuid.h>
+#include <cstring>
 
 using namespace std;
 
