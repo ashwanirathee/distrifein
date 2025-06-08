@@ -1,6 +1,6 @@
 #include <distrifein/message.h>
 #include <iostream>
-
+#include <cstring>
 
 Message deserialize_message(const std::vector<uint8_t>& raw) {
     if (raw.size() < sizeof(MessageHeader)) {

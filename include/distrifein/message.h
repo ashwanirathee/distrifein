@@ -4,6 +4,8 @@
 #include <vector>
 #include <cstdint>
 #include <functional>
+#include <string_view>
+#include <cstring>
 
 // we ignore certain messages assuming they are always less than 30 bytes
 // like heartbeat messages in other applications
