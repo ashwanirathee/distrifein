@@ -10,12 +10,17 @@
 #include <distrifein/network.h>
 #include <distrifein/message.h>
 #include <distrifein/utils.h>
-TcpServer::TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events)
+TcpServer::TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events, std::string peer_list_path)
     : node_id(node_id), peer_ids(peer_ids), eventBus(eventBus), running(true), deliver_events(deliver_events), send_events(send_events)
 {
-    this->process_peer_list("peer_list.txt");
+    this->process_peer_list(peer_list_path);
     this->self_port = peer_info[node_id].second;
-    logger.log("[P2P] Initialized with port: " + std::to_string(this->self_port) + ", peers: " + std::to_string(this->peer_ids.size()));
+    // logger.log("[P2P] Initialized with port: " + std::to_string(this->self_port) + ", peers: " + std::to_string(this->peer_ids.size()));
+    if (peer_info[node_id].first == "127.0.0.1"){
+        logger.log("[P2P] Self Id: " + std::to_string(this->node_id) + "Self Ip: localhost"  + peer_info[node_id].first +  ", Self Port: " + std::to_string(this->self_port));
+    } else {
+        logger.log("[P2P] Id: " + std::to_string(this->node_id) + ", Ip: "  + peer_info[node_id].first +  ", Port: " + std::to_string(this->self_port));
+    }
 
     for (int peer_id : peer_ids)
     {
@@ -54,14 +59,14 @@ void TcpServer::process_peer_list(std::string peer_list_path){
     std::string ip;
     while (std::getline(peer_list, line))
     {
-        std::cout << line << std::endl;
+        // std::cout << line << std::endl;
         if (line[0] == '#'){
-            std::cout << "Skipping comment" << std::endl;
+            // std::cout << "Skipping comment" << std::endl;
             continue;
         }
         std::stringstream line_content(line);
         line_content >> node_id >> ip >> port;
-        std::cout << "Node ID: " << node_id << " IP: " << ip << " Port: " << port << std::endl;
+        // std::cout << "Node ID: " << node_id << " IP: " << ip << " Port: " << port << std::endl;
         this->peer_info[node_id] = std::make_pair(ip, port);
     }
     peer_list.close();

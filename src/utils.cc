@@ -5,28 +5,6 @@
 
 using namespace std;
 
-std::map<int, int> id_to_port = {
-    {0, 8000},
-    {1, 8001},
-    {2, 8002},
-    {3, 8003},
-    {4, 8004},
-    {5, 8005},
-    {6, 8006},
-    {7, 8007},
-};
-
-std::map<int, int> port_to_id = {
-    {8000, 0},
-    {8001, 1},
-    {8002, 2},
-    {8003, 3},
-    {8004, 4},
-    {8005, 5},
-    {8006, 6},
-    {8007, 7},
-};
-
 std::vector<int> split_peers_string(const char *str, char delim)
 {
     std::vector<int> tokens;

@@ -19,7 +19,7 @@
 class TcpServer
 {
 public:
-    TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events);
+    TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events, std::string peer_list_path);
     void startServer();
 
     std::vector<int> getPeerPorts();
