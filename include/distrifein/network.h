@@ -10,6 +10,7 @@
 #include <atomic>
 #include <thread>
 #include <unordered_set>
+#include <map>
 
 #include <distrifein/logger.h>
 #include <distrifein/event.h>
@@ -36,14 +37,14 @@ public:
     void deliver(int clientSocket);
     void broadcast(const Event &event);
     void sendMessage(const std::string &ip, int port, const Event &event);
-
+    void process_peer_list(std::string peer_list_path);
 private:
     int node_id;
     std::vector<int> peer_ids;
+    std::map<int, std::pair<std::string, int>> peer_info;
 
     int self_port;
     std::vector<int> peers;
-    // std::unordered_set<int> crashedPeers;
     std::unordered_set<int> crashedPeerIds;
     Logger &logger = Logger::getInstance();
     EventBus &eventBus;

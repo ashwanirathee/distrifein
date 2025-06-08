@@ -13,12 +13,13 @@
 TcpServer::TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus, std::vector<EventType> deliver_events, std::vector<EventType> send_events)
     : node_id(node_id), peer_ids(peer_ids), eventBus(eventBus), running(true), deliver_events(deliver_events), send_events(send_events)
 {
-    this->self_port = id_to_port[node_id];
+    this->process_peer_list("peer_list.txt");
+    this->self_port = peer_info[node_id].second;
     logger.log("[P2P] Initialized with port: " + std::to_string(this->self_port) + ", peers: " + std::to_string(this->peer_ids.size()));
 
     for (int peer_id : peer_ids)
     {
-        this->peers.push_back(id_to_port[peer_id]);
+        this->peers.push_back(peer_info[peer_id].second);
         // logger.log("[P2P] Peer:" + std::to_string(peer_id) + " at port: " + std::to_string(id_to_port[peer_id]));
     }
 
@@ -46,6 +47,26 @@ TcpServer::TcpServer(int node_id, std::vector<int> peer_ids, EventBus &eventBus,
                                 this->crashedPeerIds.insert(crashedProcessId); });
 }
 
+void TcpServer::process_peer_list(std::string peer_list_path){
+    std::ifstream peer_list(peer_list_path);
+    std::string line;
+    int node_id, port;
+    std::string ip;
+    while (std::getline(peer_list, line))
+    {
+        std::cout << line << std::endl;
+        if (line[0] == '#'){
+            std::cout << "Skipping comment" << std::endl;
+            continue;
+        }
+        std::stringstream line_content(line);
+        line_content >> node_id >> ip >> port;
+        std::cout << "Node ID: " << node_id << " IP: " << ip << " Port: " << port << std::endl;
+        this->peer_info[node_id] = std::make_pair(ip, port);
+    }
+    peer_list.close();
+}
+
 void TcpServer::broadcast(const Event &event)
 {
     if (event.type != EventType::FD_SEND_EVENT)
@@ -59,7 +80,7 @@ void TcpServer::broadcast(const Event &event)
         }
         // logger.log("[BEB] Broadcasting to peer: " + std::to_string(peerId));
         // logger.log("[BEB] Size of payload: " + std::to_string(event.payload.size()));
-        this->sendMessage("127.0.0.1", id_to_port[peerId], event);
+        this->sendMessage(peer_info[peerId].first, peer_info[peerId].second, event);
     }
 }
 
@@ -77,25 +98,6 @@ void TcpServer::startServer()
 {
     std::thread(&TcpServer::network_thread, this).detach();
 }
-
-// void TcpServer::deliver(int clientSocket)
-// {
-//     char buffer[1024] = {0};
-
-//     ssize_t bytesRead = read(clientSocket, buffer, sizeof(buffer) - 1);
-//     if (bytesRead > 0)
-//     {
-//         if (bytesRead >30) logger.log("[P2P] Received message size: " + std::to_string(bytesRead)); // ignoring heartbeats
-//         std::vector<uint8_t> receivedData(buffer, buffer + bytesRead);
-//         Event event(EventType::P2P_DELIVER_EVENT, receivedData);
-//         eventBus.publish(event);
-//     }
-//     else
-//     {
-//         logger.log("[P2P] Read failed or empty.");
-//     }
-//     close(clientSocket);
-// }
 
 void TcpServer::deliver(int clientSocket)
 {
