@@ -11,6 +11,24 @@ Distributed, Decentralized, Fault-Tolerant Media Platform in C++
 - Reliable Broadcast
 - Uniform Reliable Broadcast
 
+#### Build Instructions
+
+1. Clone the repository with:
+```
+git clone https://github.com/ashwanirathee/distrifein.git
+```
+
+2.Update and add required packages
+```
+sudo apt update
+sudo apt install cmake uuid-dev
+```
+
+3. Then in root:
+```
+./build.sh or ./rebuild.sh
+```
+
 #### Example: image transfer via uniform reliable broadcast
 Displays the image of the uniform reliable broadcast protocol in action where I specify the file to be sent. It first puts the image in pending for itselfs and then waits for acks from the other nodes to deliver it. SID is the current sender id and Org SID is the original sender id. We wait for acks for all the correct processes to deliver the image before being saved to the disk:
 
